@@ -156,7 +156,8 @@ class DataTable
 					}
 				}
 				if ($colName == null) {
-					throw new \Exception('Column index=' . $index . ' not found!');
+					$colName = isset($requestColumn['data']) && !empty($requestColumn['data']) ? $requestColumn['data'] : (string)$index;
+					$isObjectColumn[$colName] = true;
 				}
 				if (isset($requestColumn['searchable']) && $requestColumn['searchable'] == 'true' && isset($this->columnsQuery[$colName])) {
 					$searchableColumns[$colName] = isset($requestColumn['search']['value']) ? (trim($requestColumn['search']['value']) == '' ? '' : $requestColumn['search']['value']) : '';
@@ -167,7 +168,11 @@ class DataTable
 				$availableColumns[] = $colName;
 			}
 		} else {
-			throw new \Exception('Column not found!');
+			// Fallback jika parameter columns tidak dikirimkan secara eksplisit
+			foreach ($this->columnsQuery as $colKey => $colVal) {
+				$availableColumns[] = $colKey;
+				$isObjectColumn[$colKey] = true;
+			}
 		}
 
 		$countAll = (clone $this->queryBuilder)->countAllResults();
