@@ -9,6 +9,7 @@ $routes->group('master-nama-perpustakaan', ['namespace' => 'NamaPerpustakaan\Con
     $subroutes->add('index', 'NamaPerpustakaan::index'); 
     $subroutes->add('edit', 'NamaPerpustakaan::edit'); 
     $subroutes->add('update', 'NamaPerpustakaan::update'); 
+    $subroutes->post('update-source-code', 'NamaPerpustakaan::updateSourceCode', ['filter' => 'csrf']);
     $subroutes->add('searchperpustakaan', 'NamaPerpustakaan::searchPerpustakaan');
     $subroutes->post('daftarkan-inlislite', 'NamaPerpustakaan::daftarkanInlisLite');
     $subroutes->add('logo-upload', 'NamaPerpustakaan::uploadLogo');

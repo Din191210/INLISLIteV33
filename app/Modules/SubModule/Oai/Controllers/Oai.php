@@ -124,6 +124,13 @@ class Oai extends \Base\Controllers\BaseController
         $xml .= '<schema>http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd</schema>';
         $xml .= '<metadataNamespace>http://www.loc.gov/MARC21/slim</metadataNamespace>';
         $xml .= '</metadataFormat>';
+
+        // Common MARC XML prefix; both prefixes use the same MARC21 schema.
+        $xml .= '<metadataFormat>';
+        $xml .= '<metadataPrefix>marcxml</metadataPrefix>';
+        $xml .= '<schema>http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd</schema>';
+        $xml .= '<metadataNamespace>http://www.loc.gov/MARC21/slim</metadataNamespace>';
+        $xml .= '</metadataFormat>';
         
         $xml .= '</ListMetadataFormats>';
         
@@ -178,7 +185,7 @@ class Oai extends \Base\Controllers\BaseController
             return $this->generateError('badArgument', 'Missing required argument metadataPrefix');
         }
         
-        if (!in_array($metadataPrefix, ['oai_dc', 'marc21'])) {
+        if (!in_array($metadataPrefix, ['oai_dc', 'marc21', 'marcxml'], true)) {
             return $this->generateError('cannotDisseminateFormat', 'The metadata format is not supported');
         }
         
@@ -231,7 +238,7 @@ class Oai extends \Base\Controllers\BaseController
             return $this->generateError('badArgument', 'Missing required argument metadataPrefix');
         }
         
-        if (!in_array($metadataPrefix, ['oai_dc', 'marc21'])) {
+        if (!in_array($metadataPrefix, ['oai_dc', 'marc21', 'marcxml'], true)) {
             return $this->generateError('cannotDisseminateFormat', 'The metadata format is not supported');
         }
         
@@ -261,7 +268,7 @@ class Oai extends \Base\Controllers\BaseController
             
             if ($metadataPrefix === 'oai_dc') {
                 $xml .= $this->generateDublinCore($catalog);
-            } elseif ($metadataPrefix === 'marc21') {
+            } elseif (in_array($metadataPrefix, ['marc21', 'marcxml'], true)) {
                 $xml .= $this->generateMARC21($catalog);
             }
             
@@ -298,7 +305,7 @@ class Oai extends \Base\Controllers\BaseController
             return $this->generateError('badArgument', 'Missing required arguments');
         }
         
-        if (!in_array($metadataPrefix, ['oai_dc', 'marc21'])) {
+        if (!in_array($metadataPrefix, ['oai_dc', 'marc21', 'marcxml'], true)) {
             return $this->generateError('cannotDisseminateFormat', 'The metadata format is not supported');
         }
         
@@ -340,7 +347,7 @@ class Oai extends \Base\Controllers\BaseController
         
         if ($metadataPrefix === 'oai_dc') {
             $xml .= $this->generateDublinCore($catalog);
-        } elseif ($metadataPrefix === 'marc21') {
+        } elseif (in_array($metadataPrefix, ['marc21', 'marcxml'], true)) {
             $xml .= $this->generateMARC21($catalog);
         }
         

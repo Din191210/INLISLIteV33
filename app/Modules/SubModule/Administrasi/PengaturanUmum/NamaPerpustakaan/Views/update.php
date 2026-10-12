@@ -412,6 +412,18 @@ $slug = $request->getGet('slug') ?? '';
 				</div>
 			</div>
 		</div>
+		<?php if (is_member('admin')) : ?>
+			<div class="main-card mb-3 card">
+				<div class="card-header"><i class="fa fa-code"></i>&nbsp;Update Source Code</div>
+				<div class="card-body">
+					<p>Mengambil pembaruan dari <code>origin/main</code>. Perubahan lokal harus sudah di-commit atau disimpan di luar folder proyek. Migrasi database dan instalasi dependensi tidak dijalankan otomatis.</p>
+					<form method="post" action="<?= base_url('master-nama-perpustakaan/update-source-code') ?>" onsubmit="return confirm('Jalankan git pull origin main? Pastikan perubahan lokal sudah diamankan.');">
+						<?= csrf_field() ?>
+						<button type="submit" class="btn btn-warning"><i class="fa fa-download"></i> Update Source Code</button>
+					</form>
+				</div>
+			</div>
+		<?php endif; ?>
 	</div>
 </div>
 <?= $this->endSection('page') ?>
@@ -422,12 +434,11 @@ $slug = $request->getGet('slug') ?? '';
 	$(document).ready(function() {
 		<?php if (session()->getFlashdata('swal_icon')) : ?>
 			Swal.fire({
-				type: '<?= session()->getFlashdata('swal_icon') ?>', // gunakan 'icon' jika SweetAlert2 versi terbaru
-				title: '<?= session()->getFlashdata('swal_title') ?>',
-				html: '<?= session()->getFlashdata('swal_html') ?? session()->getFlashdata('swal_text') ?>',
+				title: <?= json_encode(session()->getFlashdata('swal_title'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?>,
+				text: <?= json_encode(session()->getFlashdata('swal_text'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?>,
 				showConfirmButton: false,
 				timer: 3000,
-				icon: 'success'
+				icon: <?= json_encode(session()->getFlashdata('swal_icon'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?>
 			});
 		<?php endif; ?>
 	});

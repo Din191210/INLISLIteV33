@@ -302,4 +302,130 @@ class NamaPerpustakaan extends \Base\Controllers\BaseController
 			return redirect()->back();
 		}
 	}
+
+	public function updateSourceCode()
+	{
+		if (!is_member('admin')) {
+			return $this->response->setStatusCode(403)->setBody('Akses ditolak.');
+		}
+
+		if (!function_exists('proc_open')) {
+			return redirect()->back()->with('swal_icon', 'error')
+				->with('swal_title', 'Gagal')->with('swal_text', 'Eksekusi proses dinonaktifkan pada server.');
+		}
+
+		$lock = @fopen(WRITEPATH . 'cache/source-update.lock', 'c');
+		if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
+			if (is_resource($lock)) {
+				fclose($lock);
+			}
+			return redirect()->back()->with('swal_icon', 'error')
+				->with('swal_title', 'Gagal')->with('swal_text', 'Update source code sedang berjalan.');
+		}
+
+		try {
+			[$code, $root] = $this->runGit(['rev-parse', '--show-toplevel']);
+			if ($code !== 0 || realpath(trim($root)) !== realpath(ROOTPATH)) {
+				throw new \RuntimeException('Folder aplikasi bukan root repository Git.');
+			}
+
+			[$code, $branch] = $this->runGit(['branch', '--show-current']);
+			if ($code !== 0 || trim($branch) !== 'main') {
+				throw new \RuntimeException('Update hanya tersedia saat branch aktif main.');
+			}
+
+			[$code, $origin] = $this->runGit(['remote', 'get-url', 'origin']);
+			if ($code !== 0 || !preg_match('~^(?:https://github\.com/|git@github\.com:)INLISLite-Perpusnas/INLISLIteV33(?:\.git)?/?$~i', trim($origin))) {
+				throw new \RuntimeException('Remote origin bukan repository GitHub proyek ini.');
+			}
+
+			[$code, $changes] = $this->runGit(['status', '--porcelain']);
+			if ($code !== 0 || $changes !== '') {
+				throw new \RuntimeException('Ada perubahan lokal. Commit atau amankan perubahan sebelum update.');
+			}
+
+			[$code, $before] = $this->runGit(['rev-parse', '--short', 'HEAD']);
+			if ($code !== 0) {
+				throw new \RuntimeException('Tidak dapat membaca versi kode saat ini.');
+			}
+
+			[$code] = $this->runGit(['pull', '--ff-only', 'origin', 'main'], 90);
+			if ($code !== 0) {
+				throw new \RuntimeException('Git pull gagal. Periksa koneksi GitHub, izin folder, dan riwayat branch.');
+			}
+
+			[$code, $after] = $this->runGit(['rev-parse', '--short', 'HEAD']);
+			if ($code !== 0) {
+				throw new \RuntimeException('Kode terbarui, tetapi versi terbaru gagal dibaca.');
+			}
+
+			$message = trim($before) === trim($after)
+				? 'Source code sudah versi terbaru.'
+				: 'Source code berhasil diperbarui dari origin/main (' . trim($before) . ' ke ' . trim($after) . '). Periksa kebutuhan migrasi dan dependensi.';
+			return redirect()->back()->with('swal_icon', 'success')
+				->with('swal_title', 'Berhasil')->with('swal_text', $message);
+		} catch (\Throwable $exception) {
+			$message = $exception instanceof \RuntimeException
+				? $exception->getMessage()
+				: 'Update gagal. Periksa konfigurasi Git dan izin proses web di server.';
+			return redirect()->back()->with('swal_icon', 'error')
+				->with('swal_title', 'Gagal')->with('swal_text', $message);
+		} finally {
+			flock($lock, LOCK_UN);
+			fclose($lock);
+		}
+	}
+
+	private function runGit(array $arguments, int $timeout = 15): array
+	{
+		$stdout = @tempnam(WRITEPATH . 'cache/', 'git_');
+		$stderr = @tempnam(WRITEPATH . 'cache/', 'git_');
+		if ($stdout === false || $stderr === false) {
+			if ($stdout !== false) unlink($stdout);
+			if ($stderr !== false) unlink($stderr);
+			throw new \RuntimeException('Tidak dapat menyiapkan berkas sementara untuk Git.');
+		}
+
+		$process = null;
+		try {
+			$command = array_merge([(string) env('GIT_BINARY', 'git'), '-C', ROOTPATH], $arguments);
+			$environment = array_merge(getenv() ?: [], [
+				'GIT_TERMINAL_PROMPT' => '0',
+				'GCM_INTERACTIVE' => 'Never',
+			]);
+			$process = @proc_open($command, [
+				0 => ['pipe', 'r'],
+				1 => ['file', $stdout, 'w'],
+				2 => ['file', $stderr, 'w'],
+			], $pipes, ROOTPATH, $environment, ['bypass_shell' => true]);
+			if (!is_resource($process)) {
+				throw new \RuntimeException('Git tidak dapat dijalankan oleh server.');
+			}
+			fclose($pipes[0]);
+
+			$started = microtime(true);
+			while (true) {
+				$status = proc_get_status($process);
+				if (!$status['running']) {
+					break;
+				}
+				if (microtime(true) - $started > $timeout) {
+					proc_terminate($process);
+					throw new \RuntimeException('Proses Git melewati batas waktu. Periksa status repository sebelum mengulang.');
+				}
+				usleep(100000);
+			}
+
+			$exitCode = $status['exitcode'];
+			$closed = proc_close($process);
+			$process = null;
+			return [$exitCode >= 0 ? $exitCode : $closed, trim((string) file_get_contents($stdout, false, null, 0, 8192))];
+		} finally {
+			if (is_resource($process)) {
+				proc_close($process);
+			}
+			unlink($stdout);
+			unlink($stderr);
+		}
+	}
 }
